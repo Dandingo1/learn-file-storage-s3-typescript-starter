@@ -1,5 +1,4 @@
 import { getBearerToken, validateJWT } from "../auth";
-import type { Database } from "bun:sqlite";
 import { respondWithJSON } from "./json";
 import { getVideo, updateVideo, type Video } from "../db/videos";
 import type { ApiConfig } from "../config";
@@ -57,9 +56,16 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   }
 
   const mediaType = thumbnail.type;
-  const data = await thumbnail.arrayBuffer();
-  const buffer = Buffer.from(data).toString("base64");
-  const dataURL = `data:${mediaType};base64,${buffer}`;
+  if (!mediaType) {
+    throw new BadRequestError("Missing Content-Type for thumbnail");
+  }
+
+  const extension = mediaTypeToExt(mediaType);
+  const fileName = `${videoId}${extension}`;
+
+  // const data = await thumbnail.arrayBuffer();
+  // const buffer = Buffer.from(data).toString("base64");
+  // const dataURL = `data:${mediaType};base64,${buffer}`;
 
   const video = getVideo(cfg.db, videoId);
   if (video?.userID !== userID) {
@@ -69,14 +75,21 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   // videoThumbnails.set(videoId, {data, mediaType});
 
   // const thumbnailURL = `http://localhost:${cfg.port}/api/thumbnails/${videoId}`;
-  const thumbnailURL = dataURL;
-  video.thumbnailURL = thumbnailURL;
+  // const thumbnailURL = `http://localhost:${cfg.port}/assets/${videoId}.${mediaType}`;
 
-  const updatedVideo: Video = {
-    ...video,
-    thumbnailURL
-  }
-  updateVideo(cfg.db, updatedVideo);
+  const filePath = `${cfg.assetsRoot}/${videoId}.${extension}`;
+  Bun.write(filePath, thumbnail);
 
-  return respondWithJSON(200, updatedVideo );
+  video.thumbnailURL = `http://localhost:${cfg.port}/assets/${videoId}.${mediaType}`;
+  updateVideo(cfg.db, video);
+
+  return respondWithJSON(200, video );
+}
+
+function mediaTypeToExt(mediaType: string) {
+  const parts = mediaType.split("/");
+    if (parts.length !== 2) {
+      return ".bin";
+    }
+    return parts[1];
 }
