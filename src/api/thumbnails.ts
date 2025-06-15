@@ -1,4 +1,5 @@
 import { getBearerToken, validateJWT } from "../auth";
+import { randomBytes } from "node:crypto";
 import { respondWithJSON } from "./json";
 import { getVideo, updateVideo, type Video } from "../db/videos";
 import type { ApiConfig } from "../config";
@@ -56,31 +57,23 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   }
 
   const mediaType = thumbnail.type;
-  if (!mediaType) {
-    throw new BadRequestError("Missing Content-Type for thumbnail");
+  if (!mediaType || (mediaType !== "image/jpeg" && mediaType !== "image/png")) {
+    throw new BadRequestError("Missing or Wrong Content-Type for thumbnail");
   }
 
   const extension = mediaTypeToExt(mediaType);
-  const fileName = `${videoId}${extension}`;
-
-  // const data = await thumbnail.arrayBuffer();
-  // const buffer = Buffer.from(data).toString("base64");
-  // const dataURL = `data:${mediaType};base64,${buffer}`;
 
   const video = getVideo(cfg.db, videoId);
   if (video?.userID !== userID) {
     throw new UserForbiddenError("Not the owner of the video");
   }
 
-  // videoThumbnails.set(videoId, {data, mediaType});
+  const randomUrl = randomBytes(32).toString("base64url")
 
-  // const thumbnailURL = `http://localhost:${cfg.port}/api/thumbnails/${videoId}`;
-  // const thumbnailURL = `http://localhost:${cfg.port}/assets/${videoId}.${mediaType}`;
-
-  const filePath = `${cfg.assetsRoot}/${videoId}.${extension}`;
+  const filePath = `${cfg.assetsRoot}/${randomUrl}.${extension}`;
   Bun.write(filePath, thumbnail);
 
-  video.thumbnailURL = `http://localhost:${cfg.port}/assets/${videoId}.${mediaType}`;
+  video.thumbnailURL = `http://localhost:${cfg.port}/assets/${randomUrl}.${extension}`;
   updateVideo(cfg.db, video);
 
   return respondWithJSON(200, video );
