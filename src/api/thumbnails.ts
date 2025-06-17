@@ -76,10 +76,10 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   video.thumbnailURL = `http://localhost:${cfg.port}/assets/${randomUrl}.${extension}`;
   updateVideo(cfg.db, video);
 
-  return respondWithJSON(200, video );
+  return respondWithJSON(200, video);
 }
 
-function mediaTypeToExt(mediaType: string) {
+export function mediaTypeToExt(mediaType: string) {
   const parts = mediaType.split("/");
     if (parts.length !== 2) {
       return ".bin";
